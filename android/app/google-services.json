@@ -1,0 +1,135 @@
+{
+  "project_info": {
+    "project_number": "829712973332",
+    "firebase_url": "https://fir-practices-e3f4d-default-rtdb.firebaseio.com",
+    "project_id": "fir-practices-e3f4d",
+    "storage_bucket": "fir-practices-e3f4d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:829712973332:android:1f93771e37fa3523fdf101",
+        "android_client_info": {
+          "package_name": "com.example.practice_project"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "829712973332-pg0m6rd8nklfkm5nkgrl5inghl5341ms.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.practice_project",
+            "certificate_hash": "a6487d353eb5c9b03200a89a3b6770434067a7fe"
+          }
+        },
+        {
+          "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKeJvO_on3bqjCAJfDKdTLzgJJ1AuqtZg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "829712973332-rd4g2rkaa035hq13mka87mgj99u6oqkt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hunzlashafiq.firebaseconcepts"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:829712973332:android:691f61242e297894fdf101",
+        "android_client_info": {
+          "package_name": "com.example.tiies_attendance_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKeJvO_on3bqjCAJfDKdTLzgJJ1AuqtZg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "829712973332-rd4g2rkaa035hq13mka87mgj99u6oqkt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hunzlashafiq.firebaseconcepts"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:829712973332:android:bb9b9e7ab64e74befdf101",
+        "android_client_info": {
+          "package_name": "com.hunzlashafiq.firebaseconcepts"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "829712973332-ah1h5cmnit3cj6ldjh9pq388dih8soc4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hunzlashafiq.firebaseconcepts",
+            "certificate_hash": "a6487d353eb5c9b03200a89a3b6770434067a7fe"
+          }
+        },
+        {
+          "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKeJvO_on3bqjCAJfDKdTLzgJJ1AuqtZg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "829712973332-inp4i16pcvajm35m734p87feb15lg0sb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "829712973332-rd4g2rkaa035hq13mka87mgj99u6oqkt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hunzlashafiq.firebaseconcepts"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

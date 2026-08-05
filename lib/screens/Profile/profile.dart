@@ -57,14 +57,6 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _loadProfile() async {
-    final provider = Provider.of<ProfileProvider>(context, listen: false);
-    await provider.loadUserProfile();
-
-    // Update controllers with loaded data
-    nameController.text = provider.name;
-    designationController.text = provider.designation;
-    phoneController.text = provider.phone;
-    _selectedJoinDate = provider.joinDate;
 
     // Calculate initial work duration
     _calculateWorkDuration();
@@ -1135,122 +1127,135 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
           const SizedBox(width: 10),
         ],
       ),
-      body: provider.isLoading
-          ? const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xff560542),
-        ),
-      )
-          : SingleChildScrollView(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.05),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
+      body: Consumer<ProfileProvider>(
+          builder: (context,profileProvider,child){
 
-                  // Profile Avatar with animation
-                  _buildAnimatedAvatar(provider),
+            // Update controllers with loaded data
+            nameController.text = profileProvider.name;
+            designationController.text = profileProvider.designation;
+            phoneController.text = profileProvider.phone;
+            _selectedJoinDate = profileProvider.joinDate;
 
-                  const SizedBox(height: 16),
-
-                  // Employee ID badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.badge,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          provider.employeeId,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Profile Fields
-                  _buildProfileField(
-                    icon: Icons.person_outline,
-                    label: 'Full Name',
-                    controller: nameController,
-                    hint: "Enter your full name",
-                    isEdit: isEdit,
-                  ),
-
-                  _buildProfileField(
-                    icon: Icons.work_outline,
-                    label: 'Designation',
-                    controller: designationController,
-                    hint: "Enter your designation",
-                    isEdit: isEdit,
-                  ),
-
-                  // Join Date Field (Editable)
-                  _buildJoinDateField(
-                    provider: provider,
-                    isEdit: isEdit,
-                  ),
-
-                  // Total Work Duration Card
-                  _buildWorkDurationCard(),
-
-                  _buildProfileField(
-                    icon: Icons.email_outlined,
-                    label: 'Email Address',
-                    controller: TextEditingController(text: provider.email),
-                    hint: "Email",
-                    isEdit: false, // Email cannot be edited
-                    enabled: false,
-                  ),
-
-                  _buildProfileField(
-                    icon: Icons.phone_outlined,
-                    label: 'Phone Number',
-                    controller: phoneController,
-                    hint: "Enter your phone number",
-                    isEdit: isEdit,
-                    keyboardType: TextInputType.phone,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Logout Button
-                  _buildLogoutButton(),
-
-                  const SizedBox(height: 20),
-
-                  // Update Button (only in edit mode)
-                  if (isEdit) ...[
-                    const SizedBox(height: 20),
-                    _buildUpdateButton(provider),
-                    const SizedBox(height: 20),
-                  ],
-                ],
+            if( provider.isLoading)
+            {
+              return const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xff560542),
               ),
-            ),
-          ),
-        ),
-      ),
+            );}
+            else{
+              return SingleChildScrollView(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.05),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+
+                          // Profile Avatar with animation
+                          _buildAnimatedAvatar(provider),
+
+                          const SizedBox(height: 16),
+
+                          // Employee ID badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.badge,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  provider.employeeId,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          // Profile Fields
+                          _buildProfileField(
+                            icon: Icons.person_outline,
+                            label: 'Full Name',
+                            controller: nameController,
+                            hint: "Enter your full name",
+                            isEdit: isEdit,
+                          ),
+
+                          _buildProfileField(
+                            icon: Icons.work_outline,
+                            label: 'Designation',
+                            controller: designationController,
+                            hint: "Enter your designation",
+                            isEdit: isEdit,
+                          ),
+
+                          // Join Date Field (Editable)
+                          _buildJoinDateField(
+                            provider: provider,
+                            isEdit: isEdit,
+                          ),
+
+                          // Total Work Duration Card
+                          _buildWorkDurationCard(),
+
+                          _buildProfileField(
+                            icon: Icons.email_outlined,
+                            label: 'Email Address',
+                            controller: TextEditingController(text: provider.email),
+                            hint: "Email",
+                            isEdit: false, // Email cannot be edited
+                            enabled: false,
+                          ),
+
+                          _buildProfileField(
+                            icon: Icons.phone_outlined,
+                            label: 'Phone Number',
+                            controller: phoneController,
+                            hint: "Enter your phone number",
+                            isEdit: isEdit,
+                            keyboardType: TextInputType.phone,
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          // Logout Button
+                          _buildLogoutButton(),
+
+                          const SizedBox(height: 20),
+
+                          // Update Button (only in edit mode)
+                          if (isEdit) ...[
+                            const SizedBox(height: 20),
+                            _buildUpdateButton(provider),
+                            const SizedBox(height: 20),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );}
+      })
+
     );
   }
 

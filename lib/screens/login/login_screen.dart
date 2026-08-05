@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:tiies_attendance_app/Providers/firebase_auth_provider.dart';
 import '../forgot/forgot_screen.dart';
@@ -20,110 +21,117 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Image.asset('assets/Login.png',
-                height: height * .62, fit: BoxFit.cover),
-          ),
+    return WillPopScope(
 
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: height * .52,
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF5B004F),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const Text("Welcome to Tiies Attendify",
-                        style: TextStyle(color: Colors.white, fontSize: 20)),
+      onWillPop: () async{
+        SystemNavigator.pop();
+        return true;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Image.asset('assets/Login.png',
+                  height: height * .62, fit: BoxFit.cover),
+            ),
 
-                    const SizedBox(height: 30),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: height * .52,
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF5B004F),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const Text("Welcome to Tiies Attendify",
+                          style: TextStyle(color: Colors.white, fontSize: 20)),
 
-                    buildField(Icons.email, "Email", email),
+                      const SizedBox(height: 30),
 
-                    const SizedBox(height: 20),
+                      buildField(Icons.email, "Email", email),
 
-                    buildPassword(),
+                      const SizedBox(height: 20),
 
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const ForgotScreen())),
-                        child: const Text("Forgot password?", style: TextStyle(color: Colors.white)),
-                      ),
-                    ),
+                      buildPassword(),
 
-                    const SizedBox(height: 20),
-
-                    Consumer<AuthenticationProvider>(
-                      builder: (_, auth, __) {
-                        return  ElevatedButton(
-                          style: buttonStyle(),
-                          onPressed: () {
-                            if (email.text.isEmpty ||
-                                password.text.isEmpty) {
-                              return showError(
-                                  context, "All fields required");
-                            }
-                            if (!isEmailValid(email.text)) {
-                              return showError(
-                                  context, "Invalid email format");
-                            }
-
-
-                            auth.signIn(
-                              context: context,
-                              email: email.text,
-                              password: password.text,
-                            );
-                          },
-                          child:auth.loading
-                              ? const CircularProgressIndicator(color: Colors.purple)
-                              : const Text("Sign In",
-                              style: TextStyle(
-                                  color: Color(0xff1A124D),
-                                  fontSize: 18)),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text("Don’t have account?",
-                            style: TextStyle(color: Colors.white70)),
-                        TextButton(
-                          onPressed: () => Navigator.pushReplacement(
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const SignUpScreen())),
-                          child: const Text("Sign Up",
-                              style: TextStyle(color: Colors.white)),
-                        )
-                      ],
-                    )
-                  ],
+                                  builder: (_) => const ForgotScreen())),
+                          child: const Text("Forgot password?", style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      Consumer<AuthenticationProvider>(
+                        builder: (_, auth, __) {
+                          return  ElevatedButton(
+                            style: buttonStyle(),
+                            onPressed: () {
+                              if (email.text.isEmpty ||
+                                  password.text.isEmpty) {
+                                return showError(
+                                    context, "All fields required");
+                              }
+                              if (!isEmailValid(email.text)) {
+                                return showError(
+                                    context, "Invalid email format");
+                              }
+
+
+                              auth.signIn(
+                                context: context,
+                                email: email.text,
+                                password: password.text,
+                              );
+                            },
+                            child:auth.loading
+                                ? const CircularProgressIndicator(color: Colors.purple)
+                                : const Text("Sign In",
+                                style: TextStyle(
+                                    color: Color(0xff1A124D),
+                                    fontSize: 18)),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text("Don’t have account?",
+                              style: TextStyle(color: Colors.white70)),
+                          TextButton(
+                            onPressed: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const SignUpScreen())),
+                            child: const Text("Sign Up",
+                                style: TextStyle(color: Colors.white)),
+                          )
+                        ],
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

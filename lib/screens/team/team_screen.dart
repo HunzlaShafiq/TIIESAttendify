@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,8 +18,8 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
   final ScrollController _scrollController = ScrollController();
 
-  // Map to store calculated work durations
-  final Map<String, int> _workDurations = {};
+  // Timer for work duration updates
+  Timer? _workDurationTimer;
 
   @override
   void initState() {
@@ -33,9 +35,8 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTeamMembers();
-    });
+    // Load team members with caching
+    _loadTeamMembers();
 
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -48,11 +49,25 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
     _startWorkDurationTimer();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen for changes in the provider
+    final provider = Provider.of<TeamProvider>(context);
+
+    // Initialize tab controller if data is already loaded
+    if (provider.hasData) {
+      final index = TeamProvider.teamCategories.indexOf(provider.selectedCategory);
+      if (index != -1 && _tabController.index != index) {
+        _tabController.animateTo(index);
+      }
+    }
+  }
+
   void _startWorkDurationTimer() {
-    Future.delayed(const Duration(minutes: 1), () {
+    _workDurationTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       if (mounted) {
         _updateAllWorkDurations();
-        _startWorkDurationTimer(); // Restart timer
       }
     });
   }
@@ -63,36 +78,29 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
     });
   }
 
+  Future<void> _loadTeamMembers() async {
+    final provider = Provider.of<TeamProvider>(context, listen: false);
+
+    // Check if data needs refresh or is already loaded
+    if (!provider.hasData || provider.needsRefresh()) {
+      await provider.loadTeamMembers();
+      _animationController.forward();
+    } else {
+      // Data already loaded, just animate
+      _animationController.forward();
+    }
+  }
+
   // Calculate work duration for a member
   int _calculateWorkDuration(Map<String, dynamic> member) {
-    // If member is not checked in, return 0
     if (member['userCheckIn'] != true) return 0;
 
-    // If member is on break, we might still show duration up to break start
-    // For now, we'll continue counting even during break
-
-    // Get check-in time from attendance records
-    // For now, we'll use a placeholder - you'll need to fetch actual check-in time
-    // This should come from your attendance collection
     final checkInTime = member['todayCheckInTime'];
-
     if (checkInTime == null) return 0;
 
     final now = DateTime.now();
     final duration = now.difference(checkInTime);
-
-    // Return duration in seconds
     return duration.inSeconds;
-  }
-
-  Future<void> _loadTeamMembers() async {
-    final provider = Provider.of<TeamProvider>(context, listen: false);
-    await provider.loadTeamMembers();
-
-    // After loading members, fetch check-in times for each member
-    await _fetchCheckInTimes(provider.filteredMembers);
-
-    _animationController.forward();
   }
 
   Future<void> _fetchCheckInTimes(List<Map<String, dynamic>> members) async {
@@ -104,16 +112,21 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
         final now = DateTime.now();
         final todayDate = DateFormat('yyyy-MM-dd').format(now);
 
-        final attendanceDoc = await FirebaseFirestore.instance
-            .collection('Attendance')
-            .doc(userId)
-            .collection('Records')
-            .doc(todayDate)
-            .get();
+        try {
+          final attendanceDoc = await FirebaseFirestore.instance
+              .collection('Attendance')
+              .doc(userId)
+              .collection('Records')
+              .doc(todayDate)
+              .get();
 
-        if (attendanceDoc.exists) {
-          final checkInTime = (attendanceDoc['checkInTime'] as Timestamp?)?.toDate();
-          member['todayCheckInTime'] = checkInTime;
+          if (attendanceDoc.exists) {
+            final checkInTime = (attendanceDoc['checkInTime'] as Timestamp?)?.toDate();
+            member['todayCheckInTime'] = checkInTime;
+          }
+        } catch (e) {
+          // Handle error silently
+          print('Error fetching check-in time for $userId: $e');
         }
       }
     }
@@ -124,6 +137,7 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
     _tabController.dispose();
     _animationController.dispose();
     _scrollController.dispose();
+    _workDurationTimer?.cancel();
     super.dispose();
   }
 
@@ -146,19 +160,37 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
             fontSize: 24,
           ),
         ),
+        actions: [
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xff560542)),
+            onPressed: () async {
+              await provider.refreshData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Team data refreshed'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: Color(0xff560542),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(80),
           child: _buildCategoryChips(provider),
         ),
       ),
-      body: provider.isLoading
+      body: provider.isLoading && provider.isInitialLoad
           ? const Center(
         child: CircularProgressIndicator(
           color: Color(0xff560542),
         ),
       )
           : RefreshIndicator(
-        onRefresh: _loadTeamMembers,
+        onRefresh: provider.refreshData,
         color: const Color(0xff560542),
         child: provider.filteredMembers.isEmpty
             ? _buildEmptyState(provider.selectedCategory)
@@ -447,11 +479,9 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMemberCard(Map<String, dynamic> member, int index) {
-    final statusColor = Provider.of<TeamProvider>(context, listen: false)
-        .getStatusColor(member);
-    final statusText = Provider.of<TeamProvider>(context, listen: false)
-        .getStatusText(member);
-    final joinDate = member['userJoiningDate'] as DateTime?;
+    final provider = Provider.of<TeamProvider>(context, listen: false);
+    final statusColor = provider.getStatusColor(member);
+    final statusText = provider.getStatusText(member);
 
     // Calculate work duration
     final int workDurationSeconds = _calculateWorkDuration(member);
@@ -702,10 +732,9 @@ class _TeamScreenState extends State<TeamScreen> with TickerProviderStateMixin {
   }
 
   void _showMemberDetails(BuildContext context, Map<String, dynamic> member) {
-    final statusColor = Provider.of<TeamProvider>(context, listen: false)
-        .getStatusColor(member);
-    final statusText = Provider.of<TeamProvider>(context, listen: false)
-        .getStatusText(member);
+    final provider = Provider.of<TeamProvider>(context, listen: false);
+    final statusColor = provider.getStatusColor(member);
+    final statusText = provider.getStatusText(member);
     final joinDate = member['userJoiningDate'] as DateTime?;
 
     // Calculate work duration

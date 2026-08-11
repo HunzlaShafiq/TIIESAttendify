@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class TeamProvider extends ChangeNotifier {
+
+  TeamProvider(){
+    loadTeamMembers();
+  }
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -15,10 +19,19 @@ class TeamProvider extends ChangeNotifier {
     "Others"
   ];
 
+  // Cache control
+  static DateTime? _lastFetchTime;
+  static const Duration _cacheDuration = Duration(minutes: 5);
+  static bool _isDataLoaded = false;
+
+  // Data storage
   List<Map<String, dynamic>> _allMembers = [];
   List<Map<String, dynamic>> _filteredMembers = [];
+  Map<String, List<Map<String, dynamic>>> _categoryCache = {};
+
   String _selectedCategory = "Mobile App Developer";
   bool _isLoading = false;
+  bool _isInitialLoad = true;
   String? _error;
   Map<String, dynamic>? _selectedMember;
 
@@ -26,8 +39,10 @@ class TeamProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get filteredMembers => _filteredMembers;
   String get selectedCategory => _selectedCategory;
   bool get isLoading => _isLoading;
+  bool get isInitialLoad => _isInitialLoad;
   String? get error => _error;
   Map<String, dynamic>? get selectedMember => _selectedMember;
+  bool get hasData => _allMembers.isNotEmpty;
 
   // Helper method to convert Timestamp to DateTime
   DateTime? _toDateTime(dynamic value) {
@@ -37,8 +52,25 @@ class TeamProvider extends ChangeNotifier {
     return null;
   }
 
-  // Load all team members
-  Future<void> loadTeamMembers() async {
+  // Check if cache is valid
+  bool _isCacheValid() {
+    if (!_isDataLoaded) return false;
+    if (_lastFetchTime == null) return false;
+    return DateTime.now().difference(_lastFetchTime!) < _cacheDuration;
+  }
+
+  // Load team members with caching
+  Future<void> loadTeamMembers({bool forceRefresh = false}) async {
+    // Return cached data if valid
+    if (!forceRefresh && _isCacheValid()) {
+      _filterMembers(_selectedCategory);
+      _isInitialLoad = false;
+      return;
+    }
+
+    // Check if data is already loading
+    if (_isLoading) return;
+
     _setLoading(true);
     _error = null;
 
@@ -48,10 +80,9 @@ class TeamProvider extends ChangeNotifier {
 
       final snapshot = await _firestore.collection('users').get();
 
+      // Process and cache data
       _allMembers = snapshot.docs.map((doc) {
         final data = doc.data();
-
-        // Process timestamps
         final Map<String, dynamic> processedData = {
           'id': doc.id,
           ...data,
@@ -71,6 +102,14 @@ class TeamProvider extends ChangeNotifier {
         return processedData;
       }).toList();
 
+      // Cache by category for faster filtering
+      _buildCategoryCache();
+
+      // Update last fetch time
+      _lastFetchTime = DateTime.now();
+      _isDataLoaded = true;
+      _isInitialLoad = false;
+
       // Filter by selected category
       _filterMembers(_selectedCategory);
 
@@ -81,17 +120,46 @@ class TeamProvider extends ChangeNotifier {
     }
   }
 
+  // Build category cache for faster filtering
+  void _buildCategoryCache() {
+    _categoryCache.clear();
+
+    // Initialize categories
+    for (String category in teamCategories) {
+      _categoryCache[category] = [];
+    }
+
+    // Group members by category
+    for (var member in _allMembers) {
+      final designation = member['userDesignation'] ?? '';
+      String category = designation;
+
+      if (!teamCategories.take(3).contains(designation)) {
+        category = "Others";
+      }
+
+      if (_categoryCache.containsKey(category)) {
+        _categoryCache[category]!.add(member);
+      }
+    }
+  }
+
   // Filter members by category
   void _filterMembers(String category) {
-    if (category == "Others") {
-      _filteredMembers = _allMembers.where((member) {
-        final designation = member['userDesignation'] ?? '';
-        return !teamCategories.take(3).contains(designation);
-      }).toList();
+    if (_categoryCache.containsKey(category)) {
+      _filteredMembers = List.from(_categoryCache[category] ?? []);
     } else {
-      _filteredMembers = _allMembers.where((member) {
-        return member['userDesignation'] == category;
-      }).toList();
+      // Fallback filtering
+      if (category == "Others") {
+        _filteredMembers = _allMembers.where((member) {
+          final designation = member['userDesignation'] ?? '';
+          return !teamCategories.take(3).contains(designation);
+        }).toList();
+      } else {
+        _filteredMembers = _allMembers.where((member) {
+          return member['userDesignation'] == category;
+        }).toList();
+      }
     }
     notifyListeners();
   }
@@ -101,8 +169,14 @@ class TeamProvider extends ChangeNotifier {
     if (_selectedCategory == category) return;
 
     _selectedCategory = category;
-    _filterMembers(category);
-    notifyListeners();
+
+    // Use cache if available
+    if (_categoryCache.containsKey(category)) {
+      _filteredMembers = List.from(_categoryCache[category] ?? []);
+      notifyListeners();
+    } else {
+      _filterMembers(category);
+    }
   }
 
   // Select member for details
@@ -119,6 +193,11 @@ class TeamProvider extends ChangeNotifier {
 
   // Get member count for category
   int getMemberCount(String category) {
+    if (_categoryCache.containsKey(category)) {
+      return _categoryCache[category]!.length;
+    }
+
+    // Fallback calculation
     if (category == "Others") {
       return _allMembers.where((member) {
         final designation = member['userDesignation'] ?? '';
@@ -152,6 +231,27 @@ class TeamProvider extends ChangeNotifier {
   String formatJoinDate(DateTime? date) {
     if (date == null) return 'Not specified';
     return DateFormat('dd MMM yyyy').format(date);
+  }
+
+  // Force refresh data
+  Future<void> refreshData() async {
+    await loadTeamMembers(forceRefresh: true);
+  }
+
+  // Clear cache
+  void clearCache() {
+    _isDataLoaded = false;
+    _lastFetchTime = null;
+    _allMembers.clear();
+    _filteredMembers.clear();
+    _categoryCache.clear();
+    _isInitialLoad = true;
+    notifyListeners();
+  }
+
+  // Check if data needs refresh
+  bool needsRefresh() {
+    return !_isCacheValid();
   }
 
   void _setLoading(bool value) {

@@ -84,7 +84,7 @@ class ProfileProvider extends ChangeNotifier {
         final data = doc.data()!;
         _name = data['userName'] ?? _name;
         _designation = data['userDesignation'] ?? 'Not specified';
-        _phone = data['userPhone'] ?? 'Not specified';
+        _phone = data['userPhoneNumber'] ?? 'Not specified';
         _employeeId = data['employeeId'] ?? 'EMP${user.uid.substring(0, 6)}';
                 _profileImageUrl = data['profileImageUrl'] ?? '';
 
@@ -126,8 +126,7 @@ class ProfileProvider extends ChangeNotifier {
       final Map<String, dynamic> updateData = {
         'userName': name,
         'userDesignation': designation,
-        'userPhone': phone,
-
+        'userPhoneNumber': phone,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 

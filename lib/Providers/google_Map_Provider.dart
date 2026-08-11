@@ -201,7 +201,7 @@ class GoogleMapProvider with ChangeNotifier {
   void checkAttendanceEligibility() {
     _distanceFromOffice = checkDistanceChanged();
 
-    _attendanceAllowed = _distanceFromOffice <=allowedRadius;
+    _attendanceAllowed = true;
   }
 
   Future<void> loadOfficeMarkerIcon() async {

@@ -2,88 +2,169 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class MyRequestProvider with ChangeNotifier {
-
-  MyRequestProvider(){
-    fetchMyRequests();
-  }
+class MyRequestProvider extends ChangeNotifier {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  bool _isLoading = false;
+  bool _isFetched = false;
+
+  bool get isLoading => _isLoading;
 
   List<Map<String, dynamic>> _pending = [];
   List<Map<String, dynamic>> _confirmed = [];
   List<Map<String, dynamic>> _rejected = [];
 
-  bool _isLoading = false;
-
   List<Map<String, dynamic>> get pending => _pending;
   List<Map<String, dynamic>> get confirmed => _confirmed;
   List<Map<String, dynamic>> get rejected => _rejected;
-  bool get isLoading => _isLoading;
 
-  /// 🔥 ADD NEW REQUEST
+  //=========================================================
+  // Add Leave Request
+  //=========================================================
+
   Future<void> addRequest({
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
   }) async {
+
     try {
+
       _isLoading = true;
       notifyListeners();
 
       final user = FirebaseAuth.instance.currentUser!;
-      final docRef = _firestore.collection('myRequest').doc();
 
-      await docRef.set({
-        'requestID': docRef.id,
-        'userID': user.uid,
-        'startDate': Timestamp.fromDate(startDate),
-        'endDate': Timestamp.fromDate(endDate),
-        'reason': reason,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
+      final doc = _firestore.collection("myRequest").doc();
+
+      await doc.set({
+
+        "requestID": doc.id,
+        "userID": user.uid,
+
+        "startDate": Timestamp.fromDate(startDate),
+        "endDate": Timestamp.fromDate(endDate),
+
+        "reason": reason,
+
+        "status": "pending",
+
+        "createdAt": FieldValue.serverTimestamp(),
+
       });
 
-      await fetchMyRequests();
+      await fetchMyRequests(forceRefresh: true);
+
     } catch (e) {
-      debugPrint("Add Request Error: $e");
+
+      debugPrint(e.toString());
+
     } finally {
+
       _isLoading = false;
       notifyListeners();
+
     }
+
   }
 
-  /// 🔥 FETCH REQUESTS
-  Future<void> fetchMyRequests() async {
+  //=========================================================
+  // Fetch Requests
+  //=========================================================
+
+  Future<void> fetchMyRequests({bool forceRefresh = false}) async {
+
+    if (_isFetched && !forceRefresh) return;
+
     try {
-      final user = FirebaseAuth.instance.currentUser!;
+
+      _isLoading = true;
+      notifyListeners();
+
+      final uid = FirebaseAuth.instance.currentUser!.uid;
 
       final snapshot = await _firestore
-          .collection('myRequest')
-          .where('userID', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
+          .collection("myRequest")
+          .where("userID", isEqualTo: uid)
+          .orderBy("createdAt", descending: true)
           .get();
 
       _pending.clear();
       _confirmed.clear();
       _rejected.clear();
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final status = data['status'];
+      for (final doc in snapshot.docs) {
 
-        if (status == 'pending') {
-          _pending.add(data);
-        } else if (status == 'confirmed') {
-          _confirmed.add(data);
-        } else {
-          _rejected.add(data);
+        final data = doc.data();
+
+        switch (data["status"]) {
+
+          case "pending":
+            _pending.add(data);
+            break;
+
+          case "confirmed":
+            _confirmed.add(data);
+            break;
+
+          case "rejected":
+            _rejected.add(data);
+            break;
         }
+
       }
 
-      notifyListeners();
+      _isFetched = true;
+
     } catch (e) {
-      debugPrint("Fetch Request Error: $e");
+
+      debugPrint(e.toString());
+
+    } finally {
+
+      _isLoading = false;
+      notifyListeners();
+
     }
+
   }
+
+  //=========================================================
+  // Withdraw Request
+  //=========================================================
+
+  Future<void> withdrawRequest(String requestID) async {
+
+    try {
+
+      await _firestore
+          .collection("myRequest")
+          .doc(requestID)
+          .delete();
+
+      _pending.removeWhere(
+            (e) => e["requestID"] == requestID,
+      );
+
+      notifyListeners();
+
+    } catch (e) {
+
+      debugPrint(e.toString());
+
+    }
+
+  }
+
+  //=========================================================
+  // Refresh
+  //=========================================================
+
+  Future<void> refresh() async {
+
+    await fetchMyRequests(forceRefresh: true);
+
+  }
+
 }

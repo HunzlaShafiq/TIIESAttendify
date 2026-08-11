@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:tiies_attendance_app/Providers/my_request_provider.dart';
+
+import '../../Providers/my_request_provider.dart';
 
 class MyRequest extends StatefulWidget {
   const MyRequest({super.key});
@@ -12,463 +12,50 @@ class MyRequest extends StatefulWidget {
 }
 
 class _MyRequestState extends State<MyRequest>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
 
   late TabController _tabController;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+  final TextEditingController _reasonController = TextEditingController();
 
-    Future.microtask(() =>
-        context.read<MyRequestProvider>().fetchMyRequests());
-  }
+  DateTime? _startDate;
+  DateTime? _endDate;
 
-  @override
-  Widget build(BuildContext context) {
+  Future<void> _pickStartDate(StateSetter setSheetState) async {
 
-    final provider = context.watch<MyRequestProvider>();
-
-    return Scaffold(
-      backgroundColor: const Color(0xffF5F7FA),
-
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text("My Leave Requests",
-            style: TextStyle(color: Colors.black)),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xff560542),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xff560542),
-          tabs: const [
-            Tab(text: "Pending"),
-            Tab(text: "Approved"),
-            Tab(text: "Rejected"),
-          ],
-        ),
-      ),
-
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xff560542),
-        child: const Icon(Icons.add,color: Colors.white,),
-        onPressed: () => _showAddRequestSheet(context),
-      ),
-
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-        controller: _tabController,
-        children: [
-           provider.isLoading ? const Center(child: CircularProgressIndicator()) :_buildList(provider.pending, Colors.orange),
-          provider.isLoading ? const Center(child: CircularProgressIndicator()) :_buildList(provider.confirmed, Colors.green),
-          provider.isLoading ? const Center(child: CircularProgressIndicator()) :_buildList(provider.rejected, Colors.red),
-        ],
-      ),
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2035),
+      initialDate: DateTime.now(),
     );
-  }
 
-  Widget _buildList(List<Map<String, dynamic>> data, Color statusColor) {
-    if (data.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.beach_access_outlined,
-                size: 50,
-                color: Colors.grey[400],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "No Requests Found",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Your leave requests will appear here",
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      );
+    if (date != null) {
+      setSheetState(() {
+        _startDate = date;
+
+        if (_endDate != null && _endDate!.isBefore(date)) {
+          _endDate = null;
+        }
+      });
     }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: data.length,
-      itemBuilder: (_, index) {
-        final item = data[index];
-        final start = (item['startDate'] as Timestamp).toDate();
-        final end = (item['endDate'] as Timestamp).toDate();
-        final status = item['status'];
-
-        // Calculate duration
-        final days = end.difference(start).inDays + 1;
-
-        // Get status configuration
-        final statusConfig = _getStatusConfig(status, statusColor);
-
-        return TweenAnimationBuilder(
-          tween: Tween<double>(begin: 0, end: 1),
-          duration: Duration(milliseconds: 300 + (index * 100)),
-          curve: Curves.easeOutQuad,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Status indicator line
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 6,
-                    decoration: BoxDecoration(
-                      color: statusConfig['color'],
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(24),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Main content
-                Container(
-                  margin: const EdgeInsets.only(left: 6),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(24),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header with status and duration badge
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Title with icon
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: statusConfig['color'].withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.beach_access,
-                                  size: 18,
-                                  color: statusConfig['color'],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                "Leave Request",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                  color: Color(0xff1a1a1a),
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Duration badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 12,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "$days ${days == 1 ? 'day' : 'days'}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Date range with improved design
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey[100]!),
-                        ),
-                        child: Row(
-                          children: [
-                            // Start date
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.event,
-                                    size: 16,
-                                    color: statusConfig['color'].withOpacity(0.7),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "FROM",
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[500],
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        DateFormat('dd MMM yyyy').format(start),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xff1a1a1a),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Arrow
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.arrow_forward,
-                                size: 14,
-                                color: Colors.grey[400],
-                              ),
-                            ),
-
-                            // End date
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        "TO",
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[500],
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        DateFormat('dd MMM yyyy').format(end),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xff1a1a1a),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    Icons.event,
-                                    size: 16,
-                                    color: statusConfig['color'].withOpacity(0.7),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Reason with improved design
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.format_quote,
-                              size: 16,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                item['reason'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[800],
-                                  height: 1.4,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Status badge and timestamp
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Status badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: statusConfig['color'].withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  statusConfig['icon'],
-                                  size: 14,
-                                  color: statusConfig['color'],
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusConfig['color'],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Submitted time
-                          Text(
-                            "Submitted ${DateFormat('dd MMM').format(start)}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          builder: (context, double value, child) {
-            return Opacity(
-              opacity: value,
-              child: Transform.translate(
-                offset: Offset(0, 20 * (1 - value)),
-                child: child,
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
-// Helper method to get status configuration
-  Map<String, dynamic> _getStatusConfig(String status, Color defaultColor) {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return {
-          'color': const Color(0xff2e7d32), // Dark green
-          'icon': Icons.check_circle_outline,
-        };
-      case 'pending':
-        return {
-          'color': const Color(0xffed6c02), // Orange
-          'icon': Icons.hourglass_empty,
-        };
-      case 'rejected':
-        return {
-          'color': const Color(0xffd32f2f), // Red
-          'icon': Icons.cancel_outlined,
-        };
-      default:
-        return {
-          'color': defaultColor,
-          'icon': Icons.help_outline,
-        };
+  Future<void> _pickEndDate(StateSetter setSheetState) async {
+
+    if (_startDate == null) return;
+
+    final date = await showDatePicker(
+      context: context,
+      firstDate: _startDate!,
+      lastDate: DateTime(2035),
+      initialDate: _startDate!,
+    );
+
+    if (date != null) {
+      setSheetState(() {
+        _endDate = date;
+      });
     }
   }
 
@@ -519,7 +106,7 @@ class _MyRequestState extends State<MyRequest>
                       ),
                     ),
                     const SizedBox(height: 20),
-                
+
                     // Title
                     const Text(
                       "New Leave Request",
@@ -538,7 +125,7 @@ class _MyRequestState extends State<MyRequest>
                       ),
                     ),
                     const SizedBox(height: 24),
-                
+
                     // Start Date Card - now shows selected date
                     _buildDateCard(
                       label: "Start Date",
@@ -577,7 +164,7 @@ class _MyRequestState extends State<MyRequest>
                       },
                     ),
                     const SizedBox(height: 16),
-                
+
                     // End Date Card - now shows selected date
                     _buildDateCard(
                       label: "End Date",
@@ -612,7 +199,7 @@ class _MyRequestState extends State<MyRequest>
                       },
                     ),
                     const SizedBox(height: 20),
-                
+
                     // Reason Field with character count
                     Container(
                       decoration: BoxDecoration(
@@ -662,7 +249,7 @@ class _MyRequestState extends State<MyRequest>
                       ),
                     ),
                     const SizedBox(height: 24),
-                
+
                     // Summary section when dates are selected
                     if (startDate != null && endDate != null)
                       Container(
@@ -701,7 +288,7 @@ class _MyRequestState extends State<MyRequest>
                         ),
                       ),
                     const SizedBox(height: 24),
-                
+
                     // Submit Button
                     SizedBox(
                       width: double.infinity,
@@ -722,14 +309,14 @@ class _MyRequestState extends State<MyRequest>
                             _showValidationError(context);
                             return;
                           }
-                
+
                           try {
                             await provider.addRequest(
                               startDate: startDate!,
                               endDate: endDate!,
                               reason: reasonController.text.trim(),
                             );
-                
+
                             Navigator.pop(context);
                             _showSuccessMessage(context);
                           } catch (e) {
@@ -746,7 +333,7 @@ class _MyRequestState extends State<MyRequest>
                       ),
                     ),
                     const SizedBox(height: 16),
-                
+
                     // Cancel Button
                     Center(
                       child: TextButton(
@@ -771,7 +358,7 @@ class _MyRequestState extends State<MyRequest>
     );
   }
 
-// Helper method for date cards
+  // Helper method for date cards
   Widget _buildDateCard({
     required String label,
     required DateTime? date,
@@ -917,4 +504,677 @@ class _MyRequestState extends State<MyRequest>
       ),
     );
   }
+
+
+@override
+  void initState() {
+    super.initState();
+
+    _tabController = TabController(length: 3, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MyRequestProvider>().fetchMyRequests();
+    });
+  }
+
+  @override
+  void dispose() {
+
+    _tabController.dispose();
+    _reasonController.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<MyRequestProvider>(
+      builder: (_, provider, child) {
+        return Scaffold(
+
+          backgroundColor: const Color(0xffF6F7FB),
+
+          floatingActionButton: FloatingActionButton.extended(
+
+            backgroundColor: const Color(0xff560542),
+
+            icon: const Icon(Icons.add, color: Colors.white),
+
+            label: const Text(
+              "New Leave",
+              style: TextStyle(color: Colors.white),
+            ),
+
+            onPressed: () {
+              _showAddRequestSheet(context);
+            },
+
+          ),
+
+          appBar: AppBar(
+
+            elevation: 0,
+
+            backgroundColor: Colors.white,
+
+            centerTitle: true,
+
+            title: const Text(
+
+              "My Leave Requests",
+
+              style: TextStyle(
+
+                color: Colors.black,
+
+                fontWeight: FontWeight.bold,
+
+              ),
+
+            ),
+
+            bottom: TabBar(
+
+              controller: _tabController,
+
+              labelColor: const Color(0xff560542),
+
+              unselectedLabelColor: Colors.grey,
+
+              indicatorColor: const Color(0xff560542),
+
+              tabs: [
+
+                Tab(
+
+                  text:
+                  "Pending (${provider.pending.length})",
+
+                ),
+
+                Tab(
+
+                  text:
+                  "Approved (${provider.confirmed.length})",
+
+                ),
+
+                Tab(
+
+                  text:
+                  "Rejected (${provider.rejected.length})",
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+          body: provider.isLoading
+
+              ? const Center(
+
+            child: CircularProgressIndicator(color: Color(0xff560542),),
+
+          )
+
+              : TabBarView(
+
+            controller: _tabController,
+
+            children: [
+
+              _requestList(provider.pending, true),
+
+              _requestList(provider.confirmed, false),
+
+              _requestList(provider.rejected, false),
+
+            ],
+
+          ),
+
+        );
+      },
+    );
+  }
+
+  Widget _requestList(List<Map<String, dynamic>> list,
+      bool pending,) {
+    if (list.isEmpty) {
+      return RefreshIndicator(
+
+        onRefresh: () =>
+            context
+                .read<MyRequestProvider>()
+                .refresh(),
+
+        child: ListView(
+
+          children: [
+
+            SizedBox(height: 150),
+
+            Icon(Icons.inbox,
+                size: 80,
+                color: Colors.grey),
+
+            SizedBox(height: 15),
+
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+
+                  Icon(
+                    Icons.assignment_outlined,
+                    size: 90,
+                    color: Colors.grey.shade400,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  const Text(
+                    "No Leave Requests",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    "Tap + New Leave to submit\nyour first request.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+
+          ],
+
+        ),
+
+      );
+    }
+
+    return RefreshIndicator(
+
+      color: const Color(0xff560542),
+
+      onRefresh: () =>
+          context
+              .read<MyRequestProvider>()
+              .refresh(),
+
+      child: ListView.builder(
+
+        padding: const EdgeInsets.all(16),
+
+        itemCount: list.length,
+
+        itemBuilder: (_, index) {
+          final request = list[index];
+
+          return _requestCard(
+              request,
+              pending
+          );
+        },
+
+      ),
+
+    );
+  }
+
+  Widget _requestCard(Map<String, dynamic> data,
+      bool pending,) {
+    final start = (data['startDate']).toDate();
+
+    final end = (data['endDate']).toDate();
+
+    final days = end
+        .difference(start)
+        .inDays + 1;
+
+    Color statusColor;
+    Color statusBackground;
+    IconData statusIcon;
+
+    switch (data['status']) {
+
+      case "confirmed":
+
+        statusColor = Colors.green;
+        statusBackground = Colors.green.shade50;
+        statusIcon = Icons.check_circle;
+
+        break;
+
+      case "rejected":
+
+        statusColor = Colors.red;
+        statusBackground = Colors.red.shade50;
+        statusIcon = Icons.cancel;
+
+        break;
+
+      default:
+
+        statusColor = Colors.orange;
+        statusBackground = Colors.orange.shade50;
+        statusIcon = Icons.schedule;
+    }
+
+    return InkWell(
+
+      onTap: pending
+          ? () => _showWithdrawBottomSheet(data)
+          : null,
+
+      borderRadius: BorderRadius.circular(18),
+
+      child: Container(
+
+        margin: const EdgeInsets.only(bottom: 18),
+
+        padding: const EdgeInsets.all(18),
+
+        decoration: BoxDecoration(
+
+          color: Colors.white,
+
+          borderRadius: BorderRadius.circular(18),
+
+          boxShadow: [
+
+            BoxShadow(
+
+              color: Colors.grey.shade200,
+
+              blurRadius: 12,
+
+              offset: const Offset(0, 5),
+
+            )
+
+          ],
+
+        ),
+
+        child: Column(
+
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+          children: [
+
+            Row(
+
+              children: [
+
+                Container(
+
+                  padding: const EdgeInsets.all(12),
+
+                  decoration: BoxDecoration(
+
+                    color:
+                    statusColor.withOpacity(.12),
+
+                    shape: BoxShape.circle,
+
+                  ),
+
+                  child: Icon(
+
+                    Icons.event,
+
+                    color: statusColor,
+
+                  ),
+
+                ),
+
+                const SizedBox(width: 15),
+
+                Expanded(
+
+                  child: Column(
+
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                    children: [
+
+                      Text(
+
+                        DateFormat("dd MMM yyyy")
+                            .format(start),
+
+                        style: const TextStyle(
+
+                          fontWeight:
+                          FontWeight.bold,
+
+                          fontSize: 16,
+
+                        ),
+
+                      ),
+
+                      Text(
+
+                        "${DateFormat("dd MMM").format(start)}  -  ${DateFormat(
+                            "dd MMM").format(end)}",
+
+                        style: TextStyle(
+
+                          color: Colors.grey.shade600,
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                ),
+
+                Container(
+
+                  padding:
+                  const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6),
+
+                  decoration: BoxDecoration(
+
+                    color:
+                    statusColor.withOpacity(.12),
+
+                    borderRadius:
+                    BorderRadius.circular(30),
+
+                  ),
+
+                  child: Text(
+
+                    data['status']
+                        .toString()
+                        .toUpperCase(),
+
+                    style: TextStyle(
+
+                      color: statusColor,
+
+                      fontWeight:
+                      FontWeight.bold,
+
+                    ),
+
+                  ),
+
+                )
+
+              ],
+
+            ),
+
+            const SizedBox(height: 18),
+
+            Text(
+
+              data['reason'],
+
+              style: const TextStyle(
+
+                fontSize: 15,
+
+                height: 1.5,
+
+              ),
+
+            ),
+
+            const SizedBox(height: 18),
+
+            Row(
+
+              children: [
+
+                const Icon(Icons.schedule,
+                    size: 18),
+
+                const SizedBox(width: 6),
+
+                Text("$days Day Leave"),
+
+                if(pending)...[
+
+                  const Spacer(),
+
+                  const Icon(Icons.touch_app,
+                      color: Color(0xff560542)),
+
+                  const SizedBox(width: 5),
+
+                  const Text(
+
+                    "Tap to withdraw",
+
+                    style: TextStyle(
+
+                      color: Color(0xff560542),
+
+                      fontWeight: FontWeight.w600,
+
+                    ),
+
+                  ),
+
+                ]
+
+              ],
+
+            )
+
+          ],
+
+        ),
+
+      ),
+
+    );
+  }
+  void _showWithdrawBottomSheet(Map<String, dynamic> request) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(28),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+
+              Container(
+                width: 55,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+
+              const SizedBox(height: 22),
+
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.red.shade50,
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 34,
+                  color: Colors.red.shade600,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              const Text(
+                "Withdraw Leave",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 21,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                "This leave request is still pending.\nYou can withdraw it now.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text("Withdraw Request"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _confirmWithdraw(request);
+                  },
+                ),
+              ),
+
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmWithdraw(Map<String, dynamic> request) {
+
+    showDialog(
+      context: context,
+      builder: (_) {
+
+        return AlertDialog(
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+
+          title: const Text(
+            "Withdraw Application?",
+          ),
+
+          content: const Text(
+            "Are you sure you want to withdraw this leave application?",
+          ),
+
+          actions: [
+
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("No"),
+            ),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+
+                Navigator.pop(context);
+
+                await context
+                    .read<MyRequestProvider>()
+                    .withdrawRequest(
+                  request['requestID'],
+                );
+
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+
+                  SnackBar(
+
+                    behavior: SnackBarBehavior.floating,
+
+                    backgroundColor: Colors.green,
+
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+
+                    content: const Row(
+                      children: [
+
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.white,
+                        ),
+
+                        SizedBox(width: 10),
+
+                        Expanded(
+                          child: Text(
+                            "Leave request withdrawn successfully.",
+                          ),
+                        ),
+
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: const Text("Withdraw"),
+            ),
+
+          ],
+        );
+      },
+    );
+  }
 }
+
+
